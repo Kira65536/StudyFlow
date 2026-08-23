@@ -1,5 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from models import Task
+from database import get_db
+from schemas import TaskCreate, TaskUpdate, TaskResponse
 
 app = FastAPI(
     title="StudyFlow API",
@@ -7,24 +11,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-class TaskCreate(BaseModel):
-    title: str
-    description: str = ""
-    priority: str = "medium"
-
-class TaskUpdate(BaseModel):
-    title: str
-    description: str
-    priority: str
-    completed: bool
-
-tasks = []
-next_id = 1
-
 @app.get("/")
 def home():
     return {
-        "message": "StudyFlow API работает 🚀"
+        "message": "StudyFlow API работает"
     }
 
 @app.get("/health")
@@ -33,62 +23,100 @@ def health():
         "status": "ok"
     }
 
-@app.get("/tasks")
-def get_tasks():
+@app.get(
+    "/tasks",
+    response_model=list[TaskResponse]
+)
+def get_tasks(
+    db: Session = Depends(get_db)
+):
+    statement = select(Task)
+    tasks = db.scalars(statement).all()
     return tasks
 
-@app.get("/tasks/{task_id}")
-def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+@app.get(
+    "/tasks/{task_id}",
+    response_model=TaskResponse
+)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    task = db.get(Task, task_id)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Задача не найдена"
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Задача не найдена"
+        )
+
+    return task
+
+@app.post(
+    "/tasks",
+    response_model=TaskResponse,
+    status_code=201
+)
+def create_task(
+    task_data: TaskCreate,
+    db: Session = Depends(get_db)
+):
+    new_task = Task(
+        title=task_data.title,
+        description=task_data.description,
+        priority=task_data.priority,
+        completed=False,
     )
 
-@app.post("/tasks")
-def create_task(task: TaskCreate):
-    global next_id
-    new_task = {
-        "id": next_id,
-        "title": task.title,
-        "description": task.description,
-        "priority": task.priority,
-        "completed": False,
-    }
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
 
-    tasks.append(new_task)
-    next_id += 1
     return new_task
 
-@app.put("/tasks/{task_id}")
-def update_task(task_id: int, updated_task: TaskUpdate):
-    for task in tasks:
-        if task["id"] == task_id:
-            task["title"] = updated_task.title
-            task["description"] = updated_task.description
-            task["priority"] = updated_task.priority
-            task["completed"] = updated_task.completed
-            return task
+@app.put(
+    "/tasks/{task_id}",
+    response_model=TaskResponse
+)
+def update_task(
+    task_id: int,
+    task_data: TaskUpdate,
+    db: Session = Depends(get_db)
+):
+    task = db.get(Task, task_id)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Задача не найдена"
-    )
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Задача не найдена"
+        )
+
+    task.title = task_data.title
+    task.description = task_data.description
+    task.priority = task_data.priority
+    task.completed = task_data.completed
+
+    db.commit()
+    db.refresh(task)
+
+    return task
 
 @app.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
-    for index, task in enumerate(tasks):
-        if task["id"] == task_id:
-            deleted_task = tasks.pop(index)
-            return {
-                "message": "Задача удалена",
-                "task": deleted_task
-            }
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    task = db.get(Task, task_id)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Задача не найдена"
-    )
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Задача не найдена"
+        )
+
+    db.delete(task)
+    db.commit()
+
+    return {
+        "message": "Задача удалена"
+    }
