@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy import select
+from fastapi import FastAPI, HTTPException, Depends, Query
+from sqlalchemy import select, or_
+from typing import Literal
 from sqlalchemy.orm import Session
 from models import Task
 from database import get_db
@@ -29,21 +30,69 @@ def health():
 def get_tasks(
     status: str | None = None,
     priority: str | None = None,
+    search: str | None = None,
+    sort_by: Literal[
+        "created_at",
+        "updated_at",
+        "deadline",
+        "title"
+    ] = "created_at",
+
+      order: Literal[
+        "asc",
+        "desc"
+    ] = "desc",
+
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0
+    ),
     db: Session = Depends(get_db)
 ):
-        #Начинаем формировать SELECT-запрос
+    
     statement = select(Task)
-    # Если человек передал status,добавляем фильрацию по статусу
     if status is not None:
         statement = statement.where(
             Task.status == status
         )
-# Если человек передал в priority, добавляем фильрацию по приоритету
     if priority is not None:
         statement = statement.where(
-            Task.status == status
+            Task.priority == priority
         )
-        
+    if search is not None:
+        statement = statement.where(
+            or_(
+                Task.title.ilike(
+                    f"%{search}%"
+                ),
+                Task.description.ilike(
+                    f"%{search}%"
+                )
+            )
+        )
+
+    sort_columns = {
+        "created_at": Task.created_at,
+        "updated_at": Task.updated_at,
+        "deadline": Task.deadline,
+        "title": Task.title,
+    }
+    sort_column = sort_columns[sort_by]
+    if order == "asc":
+        statement = statement.order_by(
+            sort_column.asc().nulls_last()
+        )
+    else:
+        statement = statement.order_by(
+            sort_column.desc().nulls_last()
+        )
+    statement = statement.offset(offset)
+    statement = statement.limit(limit)
     tasks = db.scalars(statement).all()
     return tasks
 
