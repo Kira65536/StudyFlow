@@ -2,9 +2,19 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select, or_
 from typing import Literal
 from sqlalchemy.orm import Session
-from models import Task
+from security import hash_password
+from models import Task, User
 from database import get_db
 from schemas import TaskCreate, TaskUpdate, TaskPatch, TaskResponse
+from schemas import (
+    TaskCreate,
+    TaskUpdate,
+    TaskPatch,
+    TaskResponse,
+    UserCreate,
+    UserResponse,
+)
+
 app = FastAPI(
     title="StudyFlow API",
     description="Backend для StudyFlow Bot",
@@ -23,10 +33,62 @@ def health():
         "status": "ok"
     }
 
+@app.post(
+#адрес, на который пользователь отправляет данные регистрации
+    "/register",
+    response_model=UserResponse,
+    status_code=201
+)
+def register_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db)
+):
+
+    existing_username = db.scalar(
+        select(User).where(
+            User.username == user_data.username
+        )
+    )
+
+    if existing_username is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Имя пользователя уже занято"
+        )
+
+    existing_email = db.scalar(
+        select(User).where(
+            User.email == user_data.email
+        )
+    )
+
+    if existing_email is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Email уже зарегистрирован"
+        )
+
+    hashed_password = hash_password(
+        user_data.password
+    )
+
+    new_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        password_hash=hashed_password,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
 @app.get(
     "/tasks",
     response_model=list[TaskResponse]
 )
+
 def get_tasks(
     status: str | None = None,
     priority: str | None = None,

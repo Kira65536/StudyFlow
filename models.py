@@ -72,3 +72,32 @@ class Task(Base):
         onupdate=func.now(),
         nullable=False
     )
+
+class User(Base):
+    __tablename__ = "users"
+    #уникальный id
+    id: Mapped[int] = mapped_column(
+        primary_key=True, 
+        autoincrement=True
+    )
+    #имя пользователя
+    username: Mapped[str] = mapped_column(
+        String(20),
+        unique=True,
+        nullable=False
+    )
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False
+    )
+    password_hash: Mapped[str] = mapped_column(
+        String(225),
+        nullable=False
+    )
+    #дата решистрации
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
