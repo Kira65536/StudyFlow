@@ -2,7 +2,11 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select, or_
 from typing import Literal
 from sqlalchemy.orm import Session
-from security import hash_password, verify_password
+from security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+)
 from models import Task, User
 from database import get_db
 from schemas import TaskCreate, TaskUpdate, TaskPatch, TaskResponse
@@ -113,10 +117,12 @@ def login_user(
             detail="Неверный email или пароль"
         )
 
-    return {
-        "masage": "Вход выполнен успешно",
-        "user_id": user.id,
-        "username": user.username
+    access_token = create_access_token(
+        user.id
+    )
+    return { 
+        "access_token": access_token,
+        "token_type": "bearer"
     }
 @app.get(
     "/tasks",
