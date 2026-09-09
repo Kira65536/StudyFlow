@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select, or_
 from typing import Literal
 from sqlalchemy.orm import Session
-from security import hash_password
+from security import hash_password, verify_password
 from models import Task, User
 from database import get_db
 from schemas import TaskCreate, TaskUpdate, TaskPatch, TaskResponse
@@ -13,6 +13,7 @@ from schemas import (
     TaskResponse,
     UserCreate,
     UserResponse,
+    UserLogin,
 )
 
 app = FastAPI(
@@ -84,6 +85,39 @@ def register_user(
 
     return new_user
 
+@app.post("/login")
+def login_user(
+    user_data: UserLogin,
+    db: Session = Depends(get_db)
+):
+    user = db.scalar(
+        select(User).where(
+            User.email == user_data.email
+        )
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный email или пароль"
+        )
+
+    password_is_correct = verify_password(
+        user_data.password,
+        user.password_hash
+    )
+
+    if not password_is_correct:
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный email или пароль"
+        )
+
+    return {
+        "masage": "Вход выполнен успешно",
+        "user_id": user.id,
+        "username": user.username
+    }
 @app.get(
     "/tasks",
     response_model=list[TaskResponse]
@@ -306,3 +340,4 @@ def delete_task(
     return {
         "message": "Задача удалена"
     }
+
