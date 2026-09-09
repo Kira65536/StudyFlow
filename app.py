@@ -2,11 +2,14 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select, or_
 from typing import Literal
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from security import (
     hash_password,
     verify_password,
     create_access_token,
+    decode_access_token,
 )
+import jwt
 from models import Task, User
 from database import get_db
 from schemas import TaskCreate, TaskUpdate, TaskPatch, TaskResponse
@@ -26,6 +29,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+bearer_scheme = HTTPBearer()
 @app.get("/")
 def home():
     return {
@@ -124,6 +128,47 @@ def login_user(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+):
+
+    token = credentials.credentials
+    try:
+        user_id = decode_access_token(token)
+    except (jwt.InvalidTokenError, ValueError):
+        raise HTTPException(
+            status_code=401,
+            detail="Недействительный или просроченный токен",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            }
+        )
+
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Пользователь не найден",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            }
+        )
+
+    return user
+
+@app.get(
+    "/me",
+    response_model=UserResponse
+)
+def get_me(
+    current_user: User = Depends(get_current_user)
+):
+
+    return current_user
+
 @app.get(
     "/tasks",
     response_model=list[TaskResponse]

@@ -40,3 +40,18 @@ def create_access_token(user_id: int) -> str:
         JWT_SECRET,
         algorithm=JWT_ALGORITHM
     )
+
+def decode_access_token(token: str) -> int:
+
+    # Расшифровываем и проверяем JWT
+    payload = jwt.decode(
+        token,
+        JWT_SECRET,
+        algorithms=[JWT_ALGORITHM]
+    )
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise ValueError("В токене отсутствует user_id")
+    return int(user_id)
