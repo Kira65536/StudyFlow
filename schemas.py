@@ -186,6 +186,68 @@ class TaskDeleteResponse(BaseModel):
     task_id: int
 
 # =========================================================
+# AI — ПЕРЕПЛАНИРОВАНИЕ
+# =========================================================
+
+class AIReplanRequest(BaseModel):
+    """Запрос на перепланирование задач."""
+
+    days: int = Field(
+        ge=1,
+        le=365,
+    )
+
+    instruction: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
+
+
+class AIReplannedTask(BaseModel):
+    """Одна перепланированная задача."""
+
+    task_id: int
+    title: str
+    description: str
+    priority: Priority
+    status: TaskStatus
+    deadline: datetime
+
+
+class AIReplanResponse(BaseModel):
+    """Ответ с новым планом."""
+
+    days: int
+    tasks: list[AIReplannedTask]
+
+# =========================================================
+# AI — ПРИМЕНЕНИЕ ПЕРЕПЛАНИРОВАНИЯ
+# =========================================================
+
+class AIReplanApplyTask(BaseModel):
+    """Изменения одной задачи после перепланирования."""
+
+    task_id: int
+    priority: Priority
+    deadline: datetime
+
+
+class AIApplyReplanRequest(BaseModel):
+    """План, который пользователь хочет применить."""
+
+    tasks: list[AIReplanApplyTask] = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+
+class AIApplyReplanResponse(BaseModel):
+    """Результат применения нового плана."""
+
+    updated_count: int
+    tasks: list[TaskResponse]
+    
+# =========================================================
 # AI
 # =========================================================
 
@@ -240,3 +302,5 @@ class AISaveTasksResponse(BaseModel):
 
     saved_count: int
     tasks: list[TaskResponse]
+
+
