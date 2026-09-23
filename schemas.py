@@ -1,73 +1,186 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, EmailStr
-#Разрешённые значения приоритета
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+)
+
+
+# =========================================================
+# ТИПЫ
+# =========================================================
+
 Priority = Literal[
     "low",
     "medium",
-    "high"
+    "high",
 ]
-# Разрешённые статусы задачи
+
 TaskStatus = Literal[
     "todo",
     "in_progress",
-    "done"
+    "done",
 ]
 
-#Для создания задачи     
+
+# =========================================================
+# ЗАДАЧИ
+# =========================================================
+
 class TaskCreate(BaseModel):
-    title: str
-    description: str = ""
+    """Данные для создания новой задачи."""
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+    title: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+
+    description: str = Field(
+        default="",
+        max_length=5000,
+    )
+
     priority: Priority = "medium"
     status: TaskStatus = "todo"
     deadline: datetime | None = None
 
-# Данные для полного изменения задачи
+
 class TaskUpdate(BaseModel):
-    title: str
-    description: str
+    """Полное обновление задачи через PUT."""
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+    title: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+
+    description: str = Field(
+        max_length=5000
+    )
+
     priority: Priority
     status: TaskStatus
     deadline: datetime | None = None
 
-# Данные для частивного изменения 
+
 class TaskPatch(BaseModel):
-    title: str | None = None
-    description: str | None = None
+    """Частичное обновление задачи через PATCH."""
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+
+    description: str | None = Field(
+        default=None,
+        max_length=5000,
+    )
+
     priority: Priority | None = None
     status: TaskStatus | None = None
     deadline: datetime | None = None
 
-#То, что FastAPI возвращает пользователю
+
 class TaskResponse(BaseModel):
+    """Задача, которую API возвращает пользователю."""
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
     id: int
     title: str
     description: str
     priority: Priority
-    completed: bool
     status: TaskStatus
+    completed: bool
+    deadline: datetime | None
     created_at: datetime
     updated_at: datetime
-    model_config = {
-        "from_attributes": True
-    }
 
-#регистрация пользователя 
+
+# =========================================================
+# ПОЛЬЗОВАТЕЛИ
+# =========================================================
+
 class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
+    """Данные для регистрации."""
 
-#Данные, которые можно вернуть
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+    username: str = Field(
+        min_length=3,
+        max_length=50,
+    )
+
+    email: EmailStr
+
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
+
+
+class UserLogin(BaseModel):
+    """Данные для входа."""
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+    email: EmailStr
+
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
+
 class UserResponse(BaseModel):
+    """Безопасные данные пользователя."""
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
     id: int
     username: str
     email: EmailStr
     created_at: datetime
-    model_config = {
-        "from_attributes": True
-    }
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str 
+
+# =========================================================
+# JWT
+# =========================================================
+
+class TokenResponse(BaseModel):
+    """Ответ после успешного входа."""
+
+    access_token: str
+    token_type: str
+
+
+# =========================================================
+# ПРОЧИЕ ОТВЕТЫ
+# =========================================================
+
+class TaskDeleteResponse(BaseModel):
+    message: str
+    task_id: int

@@ -1,49 +1,54 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, Text, DateTime
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped, mapped_column
+
+from sqlalchemy import String, Boolean, Text, DateTime, ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database import Base
 
 
-# Модель таблицы tasks
-class Task(Base):
+# --------------------------------------------------
+# TASK
+# --------------------------------------------------
 
-    # Название таблицы в PostgreSQL
+class Task(Base):
     __tablename__ = "tasks"
 
-
-    # Уникальный ID задачи
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True
     )
 
+    # Какому пользователю принадлежит задача
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True
+    )
 
-    # Название задачи
+    # Владелец задачи
+    user: Mapped["User | None"] = relationship(
+        back_populates="tasks"
+    )
+
     title: Mapped[str] = mapped_column(
         String(200),
         nullable=False
     )
 
-    #Описание задачи
     description: Mapped[str] = mapped_column(
         Text,
         default=""
     )
 
-    #Приоритет задачи
     priority: Mapped[str] = mapped_column(
         String(20),
         default="medium"
     )
 
-    # Старое поле выполнения пока оставляем
     completed: Mapped[bool] = mapped_column(
         Boolean,
         default=False
     )
 
-#Статус задачи
     status: Mapped[str] = mapped_column(
         String(20),
         default="todo",
@@ -51,21 +56,17 @@ class Task(Base):
         nullable=False
     )
 
-    #Дедлайн задачи может отсутствовать, поэтому Optional
-
     deadline: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True
     )
 
-    #Дата создания задачи
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False
     )
 
-    #Дата последнего изменения
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -73,31 +74,43 @@ class Task(Base):
         nullable=False
     )
 
+
+# --------------------------------------------------
+# USER
+# --------------------------------------------------
+
 class User(Base):
     __tablename__ = "users"
-    #уникальный id
+
     id: Mapped[int] = mapped_column(
-        primary_key=True, 
+        primary_key=True,
         autoincrement=True
     )
-    #имя пользователя
+
     username: Mapped[str] = mapped_column(
         String(20),
         unique=True,
         nullable=False
     )
+
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False
     )
+
     password_hash: Mapped[str] = mapped_column(
         String(225),
         nullable=False
     )
-    #дата решистрации
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False
+    )
+
+    # Все задачи этого пользователя
+    tasks: Mapped[list["Task"]] = relationship(
+        back_populates="user"
     )
