@@ -184,3 +184,59 @@ class TokenResponse(BaseModel):
 class TaskDeleteResponse(BaseModel):
     message: str
     task_id: int
+
+# =========================================================
+# AI
+# =========================================================
+
+class AITaskGenerateRequest(BaseModel):
+    """Запрос на генерацию плана."""
+
+    goal: str = Field(
+        min_length=3,
+        max_length=2000,
+    )
+
+    number_of_tasks: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+    )
+
+    days: int | None = Field(
+        default=None,
+        ge=1,
+        le=365,
+    )
+
+
+class AIGeneratedTask(BaseModel):
+    """Одна задача, созданная AI."""
+
+    title: str
+    description: str = ""
+    priority: Priority = "medium"
+    deadline: datetime | None = None
+
+
+class AITaskGenerateResponse(BaseModel):
+    """Готовый AI-план."""
+
+    goal: str
+    tasks: list[AIGeneratedTask]
+
+
+class AISaveTasksRequest(BaseModel):
+    """Задачи, выбранные пользователем для сохранения."""
+
+    tasks: list[AIGeneratedTask] = Field(
+        min_length=1,
+        max_length=20,
+    )
+
+
+class AISaveTasksResponse(BaseModel):
+    """Результат сохранения AI-задач."""
+
+    saved_count: int
+    tasks: list[TaskResponse]
