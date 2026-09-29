@@ -4,11 +4,7 @@ from sqlalchemy import String, Boolean, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
-
-
-# --------------------------------------------------
 # TASK
-# --------------------------------------------------
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -73,18 +69,18 @@ class Task(Base):
         onupdate=func.now(),
         nullable=False
     )
-
-
-# --------------------------------------------------
 # USER
-# --------------------------------------------------
-
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True
+    )
+    
+    telegram_id: Mapped[int | None] = mapped_column(
+        unique=True,
+        nullable=True
     )
 
     username: Mapped[str] = mapped_column(

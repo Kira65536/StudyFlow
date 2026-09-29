@@ -6,25 +6,25 @@ from datetime import (
     timezone,
 )
 
-import ollama
+from ollama import Client
 
 from schemas import (
     AITaskGenerateResponse,
     AIReplannedTask,
     AIReplanResponse,
 )
-
-
-# =========================================================
 # НАСТРОЙКИ AI
-# =========================================================
 
 MODEL_NAME = "qwen2.5:3b"
 
 
-# =========================================================
+# Подключаемся напрямую к локальной Ollama. trust_env=False отключает системные HTTP/HTTPS proxy, из-за которых у нас появлялась ошибка 503.
+ollama_client = Client(
+    host="http://127.0.0.1:11434",
+    trust_env=False,
+)
+
 # ДЕДЛАЙНЫ ДЛЯ НОВЫХ AI-ЗАДАЧ
-# =========================================================
 
 def add_deadlines(
     result: AITaskGenerateResponse,
@@ -38,22 +38,17 @@ def add_deadlines(
     if days is None:
         return result
 
-    number_of_tasks = len(
-        result.tasks
-    )
+    number_of_tasks = len(result.tasks)
 
     if number_of_tasks == 0:
         return result
 
-    now = datetime.now(
-        timezone.utc
-    )
+    now = datetime.now(timezone.utc)
 
     for index, task in enumerate(
         result.tasks,
         start=1,
     ):
-
         task_day = max(
             1,
             round(
@@ -72,10 +67,7 @@ def add_deadlines(
 
     return result
 
-
-# =========================================================
 # ГЕНЕРАЦИЯ НОВЫХ ЗАДАЧ
-# =========================================================
 
 def generate_tasks_with_ai(
     goal: str,
@@ -85,6 +77,11 @@ def generate_tasks_with_ai(
     """
     Генерирует новый план задач через Ollama.
     """
+
+    if number_of_tasks < 1:
+        raise RuntimeError(
+            "Количество задач должно быть больше 0"
+        )
 
     period_text = ""
 
@@ -143,9 +140,9 @@ def generate_tasks_with_ai(
     ]
 }}
 """
-
+    # ЗАПРОС К OLLAMA
     try:
-        response = ollama.chat(
+        response = ollama_client.chat(
             model=MODEL_NAME,
 
             messages=[
@@ -175,7 +172,8 @@ def generate_tasks_with_ai(
     except Exception as error:
         raise RuntimeError(
             f"Не удалось подключиться к Ollama: {error}"
-        )
+        ) from error
+    # ЧИТАЕМ ОТВЕТ
 
     try:
         content = response[
@@ -184,21 +182,22 @@ def generate_tasks_with_ai(
             "content"
         ]
 
-    except Exception:
+    except Exception as error:
         raise RuntimeError(
             "Ollama вернул неожиданный ответ"
-        )
+        ) from error
+    # JSON
 
     try:
         data = json.loads(
             content
         )
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         raise RuntimeError(
             "AI вернул некорректный JSON"
-        )
-
+        ) from error
+    # PYDANTIC-ПРОВЕРКА
     try:
         result = (
             AITaskGenerateResponse
@@ -211,8 +210,8 @@ def generate_tasks_with_ai(
         raise RuntimeError(
             "AI вернул данные "
             f"неверного формата: {error}"
-        )
-
+        ) from error
+    # ПРОВЕРКА КОЛИЧЕСТВА ЗАДАЧ
     if (
         len(result.tasks)
         != number_of_tasks
@@ -221,6 +220,7 @@ def generate_tasks_with_ai(
             "AI вернул неправильное "
             "количество задач"
         )
+    # ДОБАВЛЯЕМ ДЕДЛАЙНЫ
 
     result = add_deadlines(
         result=result,
@@ -228,11 +228,7 @@ def generate_tasks_with_ai(
     )
 
     return result
-
-
-# =========================================================
 # AI-ПЕРЕПЛАНИРОВАНИЕ
-# =========================================================
 
 def replan_tasks_with_ai(
     tasks: list,
@@ -258,14 +254,14 @@ def replan_tasks_with_ai(
             "Нет задач для перепланирования"
         )
 
-    # -----------------------------------------------------
-    # Подготавливаем задачи для AI
-    # -----------------------------------------------------
-
+    if days < 1:
+        raise RuntimeError(
+            "Количество дней должно быть больше 0"
+        )
+    # ПОДГОТАВЛИВАЕМ ЗАДАЧИ
     task_data = []
 
     for task in tasks:
-
         task_data.append(
             {
                 "task_id": task.id,
@@ -281,23 +277,17 @@ def replan_tasks_with_ai(
             }
         )
 
-    # -----------------------------------------------------
-    # Дополнительное пожелание пользователя
-    # -----------------------------------------------------
+    #ДОПОЛНИТЕЛЬНОЕ ПОЖЕЛАНИЕ
 
     instruction_text = ""
 
     if instruction:
-
         instruction_text = f"""
 Дополнительное пожелание пользователя:
 
 {instruction}
 """
-
-    # -----------------------------------------------------
     # PROMPT
-    # -----------------------------------------------------
 
     prompt = f"""
 У пользователя есть незавершённые задачи:
@@ -327,6 +317,10 @@ def replan_tasks_with_ai(
 
 Верни ТОЛЬКО JSON.
 
+Не используй Markdown.
+Не добавляй текст перед JSON.
+Не добавляй текст после JSON.
+
 Формат:
 
 {{
@@ -338,13 +332,9 @@ def replan_tasks_with_ai(
     ]
 }}
 """
-
-    # -----------------------------------------------------
     # ЗАПРОС К OLLAMA
-    # -----------------------------------------------------
-
     try:
-        response = ollama.chat(
+        response = ollama_client.chat(
             model=MODEL_NAME,
 
             messages=[
@@ -376,12 +366,8 @@ def replan_tasks_with_ai(
     except Exception as error:
         raise RuntimeError(
             f"Не удалось подключиться к Ollama: {error}"
-        )
-
-    # -----------------------------------------------------
+        ) from error
     # ЧИТАЕМ ОТВЕТ
-    # -----------------------------------------------------
-
     try:
         content = response[
             "message"
@@ -389,20 +375,22 @@ def replan_tasks_with_ai(
             "content"
         ]
 
-    except Exception:
+    except Exception as error:
         raise RuntimeError(
             "Ollama вернул неожиданный ответ"
-        )
+        ) from error
+
+    # JSON
 
     try:
         data = json.loads(
             content
         )
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         raise RuntimeError(
             "AI вернул некорректный JSON"
-        )
+        ) from error
 
     ai_tasks = data.get(
         "tasks"
@@ -417,9 +405,7 @@ def replan_tasks_with_ai(
             "формат плана"
         )
 
-    # -----------------------------------------------------
-    # ПРОВЕРКА ЗАДАЧ
-    # -----------------------------------------------------
+    # ОРИГИНАЛЬНЫЕ ЗАДАЧИ
 
     original_tasks = {
         task.id: task
@@ -437,6 +423,8 @@ def replan_tasks_with_ai(
         "medium",
         "high",
     }
+
+    # ПРОВЕРЯЕМ AI-ОТВЕТ
 
     for item in ai_tasks:
 
@@ -476,14 +464,15 @@ def replan_tasks_with_ai(
             task_id
         )
 
+#ПРОВЕРЯЕМ, ЧТО AI ВЕРНУЛ ВСЕ ЗАДАЧИ
+
     if set(received_ids) != original_ids:
         raise RuntimeError(
             "AI вернул не все задачи"
         )
 
-    # -----------------------------------------------------
-    # СОЗДАЁМ НОВЫЕ ДЕДЛАЙНЫ
-    # -----------------------------------------------------
+#СОЗДАЁМ НОВЫЕ ДЕДЛАЙНЫ
+
 
     now = datetime.now(
         timezone.utc
@@ -499,7 +488,6 @@ def replan_tasks_with_ai(
         ai_tasks,
         start=1,
     ):
-
         task_id = item[
             "task_id"
         ]
@@ -537,9 +525,7 @@ def replan_tasks_with_ai(
             replanned_task
         )
 
-    # -----------------------------------------------------
-    # ГОТОВЫЙ ПЛАН
-    # -----------------------------------------------------
+#ГОТОВЫЙ ПЛАН
 
     return AIReplanResponse(
         days=days,
