@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: studyflow_db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: studyflow
+      POSTGRES_USER: studyflow
+      POSTGRES_PASSWORD: studyflow
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studyflow -d studyflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  api:
+    build: .
+    container_name: studyflow_api
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: postgresql+psycopg2://studyflow:studyflow@db:5432/studyflow
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    command: >
+      sh -c "
+      alembic upgrade head &&
+      python -m uvicorn app:app --host 0.0.0.0 --port 8000
+      "
+
+
+  bot:
+    build: .
+    container_name: studyflow_bot
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: postgresql+psycopg2://studyflow:studyflow@db:5432/studyflow
+
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    command: python -m bot.bot
+
+
+volumes:
+  postgres_data:
