@@ -1,4 +1,6 @@
 services:
+
+
   db:
     image: postgres:16-alpine
     container_name: studyflow_db
@@ -11,6 +13,8 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U studyflow -d studyflow"]
@@ -48,22 +52,18 @@ services:
     build: .
     container_name: studyflow_bot
     restart: unless-stopped
-
+    network_mode: host
     env_file:
       - .env
-
     environment:
-      DATABASE_URL: postgresql+psycopg2://studyflow:studyflow@db:5432/studyflow
-
+      DATABASE_URL: postgresql+psycopg2://studyflow:studyflow@127.0.0.1:15432/studyflow
     depends_on:
       db:
         condition: service_healthy
       api:
         condition: service_started
-
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
     command: python -m bot.bot
 
 
