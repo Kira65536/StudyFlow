@@ -3,7 +3,6 @@ import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
-
 #объект с настройками
 password_hash = PasswordHash.recommended()
 load_dotenv()
@@ -15,7 +14,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 #превращает обычный пароль в безопасный
 def hash_password(password: str) -> str:
     return password_hash.hash(password)
-
 def verify_password(
         plain_password: str,
         hashed_password: str
