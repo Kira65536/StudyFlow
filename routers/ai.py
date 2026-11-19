@@ -3,7 +3,6 @@ from fastapi import (
     Depends,
     HTTPException,
 )
-
 from schemas import (
     AITaskGenerateRequest,
     AITaskGenerateResponse,
@@ -17,10 +16,8 @@ from schemas import (
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-
 from database import get_db
 from dependencies import get_current_user
-
 from models import (
     Task,
     User,
@@ -31,13 +28,13 @@ from services.ai_service import (
     replan_tasks_with_ai,
 )
 
-#ROUTER
+#роутер
 router = APIRouter(
     prefix="/ai",
     tags=["AI"],
 )
 
-#ГЕНЕРАЦИЯ ЗАДАЧ
+#генирация задач
 
 @router.post(
     "/generate-tasks",
@@ -69,7 +66,7 @@ def generate_tasks(
             status_code=503,
             detail=str(error),
         )
-# СОХРАНЕНИЕ AI-ЗАДАЧ
+# сохранения al-задачч
 
 @router.post(
     "/save-tasks",
@@ -129,7 +126,7 @@ def save_ai_tasks(
     }
 
 
-# AI — ПРИМЕНИТЬ НОВЫЙ ПЛАН
+# AI — новыйй план
 
 @router.post(
     "/apply-replan",
@@ -154,14 +151,14 @@ def apply_replan(
         for item in request.tasks
     ]
 
-    # Проверяем дубли ID
+# Проверяем дубли ID
     if len(task_ids) != len(set(task_ids)):
         raise HTTPException(
             status_code=400,
             detail="В плане есть повторяющиеся task_id",
         )
 
-    # Получаем только задачи текущего пользователя
+# Получаем только задачи текущего пользователя
     tasks = db.scalars(
         select(Task).where(
             Task.user_id == current_user.id,
@@ -184,9 +181,8 @@ def apply_replan(
         for task in tasks
     }
 
-    # Если пользователь успел закончить задачу,после генерации нового плана
+# Если пользователь успел закончить задачу после генерации нового плана
     for task in tasks:
-
         if task.status == "done":
             raise HTTPException(
                 status_code=409,

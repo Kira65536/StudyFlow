@@ -8,7 +8,7 @@ from routers.auth import router as auth_router
 from routers.tasks import router as tasks_router
 from routers.ai import router as ai_router
 
-# ПРИЛОЖЕНИЕ
+# приложение
 
 app = FastAPI(
     title="StudyFlow API",
@@ -21,14 +21,14 @@ app = FastAPI(
 )
 
 
-# ROUTERS
+#роутер
 
 app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(ai_router)
 
 
-# СИСТЕМНЫЕ ENDPOINTS
+#  системный endpoints
 
 @app.get(
     "/",
@@ -41,7 +41,6 @@ def home():
         "status": "running",
         "docs": "/docs",
     }
-
 
 @app.get(
     "/health",

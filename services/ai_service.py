@@ -13,19 +13,17 @@ from schemas import (
     AIReplannedTask,
     AIReplanResponse,
 )
-# НАСТРОЙКИ AI
 
+# настройки AI
 MODEL_NAME = "qwen2.5:3b"
 
-
-# Подключаемся напрямую к локальной Ollama. trust_env=False отключает системные HTTP/HTTPS proxy, из-за которых у нас появлялась ошибка 503.
+# Подключаемся напрямую к локальной Ollama
 ollama_client = Client(
-    host="http://127.0.0.1:11434",
+    host="http://host.docker.internal:11434",
     trust_env=False,
 )
 
-# ДЕДЛАЙНЫ ДЛЯ НОВЫХ AI-ЗАДАЧ
-
+# дедлайн новых al-задач
 def add_deadlines(
     result: AITaskGenerateResponse,
     days: int | None,
@@ -37,14 +35,10 @@ def add_deadlines(
 
     if days is None:
         return result
-
     number_of_tasks = len(result.tasks)
-
     if number_of_tasks == 0:
         return result
-
     now = datetime.now(timezone.utc)
-
     for index, task in enumerate(
         result.tasks,
         start=1,
@@ -57,17 +51,15 @@ def add_deadlines(
                 / number_of_tasks
             ),
         )
-
         task.deadline = (
             now
             + timedelta(
                 days=task_day
             )
         )
-
     return result
 
-# ГЕНЕРАЦИЯ НОВЫХ ЗАДАЧ
+# генирация новых задач
 
 def generate_tasks_with_ai(
     goal: str,
@@ -82,51 +74,36 @@ def generate_tasks_with_ai(
         raise RuntimeError(
             "Количество задач должно быть больше 0"
         )
-
     period_text = ""
-
     if days is not None:
         period_text = (
             f"Пользователь хочет достичь цели "
             f"примерно за {days} дней."
         )
-
     prompt = f"""
 Цель пользователя:
-
 {goal}
-
 {period_text}
-
 Создай ровно {number_of_tasks} конкретных задач,
 которые помогут пользователю достичь этой цели.
-
 Расположи задачи в логическом порядке:
 от первого шага до завершающего.
-
 Задачи должны быть практичными и конкретными.
-
 Плохо:
 "Познакомиться с Python"
-
 Хорошо:
 "Повторить функции и классы Python"
 "Решить 5 задач по SQL"
 "Создать CRUD endpoint в FastAPI"
-
 Для каждой задачи укажи:
-
 - title — короткое название;
 - description — конкретное действие;
 - priority — только low, medium или high.
-
 Верни ТОЛЬКО JSON.
-
 Не используй Markdown.
 Не добавляй объяснений.
 Не добавляй текст перед JSON.
 Не добавляй текст после JSON.
-
 Формат:
 
 {{
@@ -140,11 +117,10 @@ def generate_tasks_with_ai(
     ]
 }}
 """
-    # ЗАПРОС К OLLAMA
+    # запрос к OLLAMA
     try:
         response = ollama_client.chat(
             model=MODEL_NAME,
-
             messages=[
                 {
                     "role": "system",
@@ -161,9 +137,7 @@ def generate_tasks_with_ai(
                     "content": prompt,
                 },
             ],
-
             format="json",
-
             options={
                 "temperature": 0.2,
             },
@@ -173,31 +147,27 @@ def generate_tasks_with_ai(
         raise RuntimeError(
             f"Не удалось подключиться к Ollama: {error}"
         ) from error
-    # ЧИТАЕМ ОТВЕТ
-
+    # ответ
     try:
         content = response[
             "message"
         ][
             "content"
         ]
-
     except Exception as error:
         raise RuntimeError(
             "Ollama вернул неожиданный ответ"
         ) from error
-    # JSON
-
+    # json
     try:
         data = json.loads(
             content
         )
-
     except json.JSONDecodeError as error:
         raise RuntimeError(
             "AI вернул некорректный JSON"
         ) from error
-    # PYDANTIC-ПРОВЕРКА
+    #   проверка pydabtic
     try:
         result = (
             AITaskGenerateResponse
@@ -205,13 +175,12 @@ def generate_tasks_with_ai(
                 data
             )
         )
-
     except Exception as error:
         raise RuntimeError(
             "AI вернул данные "
             f"неверного формата: {error}"
         ) from error
-    # ПРОВЕРКА КОЛИЧЕСТВА ЗАДАЧ
+    # проверка кол-во задач
     if (
         len(result.tasks)
         != number_of_tasks
@@ -220,7 +189,7 @@ def generate_tasks_with_ai(
             "AI вернул неправильное "
             "количество задач"
         )
-    # ДОБАВЛЯЕМ ДЕДЛАЙНЫ
+    # добавляем дедлайн
 
     result = add_deadlines(
         result=result,
@@ -228,8 +197,7 @@ def generate_tasks_with_ai(
     )
 
     return result
-# AI-ПЕРЕПЛАНИРОВАНИЕ
-
+# AI-перепланирование
 def replan_tasks_with_ai(
     tasks: list,
     days: int,
@@ -237,30 +205,24 @@ def replan_tasks_with_ai(
 ) -> AIReplanResponse:
     """
     Перестраивает существующий план.
-
     AI:
     - меняет порядок задач;
     - определяет приоритет.
-
     Python:
     - проверяет task_id;
     - назначает новые дедлайны.
-
     Новые задачи не создаются.
     """
-
     if not tasks:
         raise RuntimeError(
             "Нет задач для перепланирования"
         )
-
     if days < 1:
         raise RuntimeError(
             "Количество дней должно быть больше 0"
         )
-    # ПОДГОТАВЛИВАЕМ ЗАДАЧИ
+    # подготовка задач
     task_data = []
-
     for task in tasks:
         task_data.append(
             {
@@ -277,33 +239,25 @@ def replan_tasks_with_ai(
             }
         )
 
-    #ДОПОЛНИТЕЛЬНОЕ ПОЖЕЛАНИЕ
-
+    # доп пожелания
     instruction_text = ""
-
     if instruction:
         instruction_text = f"""
 Дополнительное пожелание пользователя:
 
 {instruction}
 """
-    # PROMPT
 
     prompt = f"""
 У пользователя есть незавершённые задачи:
-
 {json.dumps(
     task_data,
     ensure_ascii=False,
     indent=2,
 )}
-
 Нужно перестроить план на {days} дней.
-
 {instruction_text}
-
 Твоя задача:
-
 1. Расположи задачи в логическом порядке.
 2. Самые важные задачи поставь раньше.
 3. Измени priority при необходимости.
@@ -314,15 +268,11 @@ def replan_tasks_with_ai(
 7. НЕ изменяй task_id.
 8. Каждый task_id должен встретиться ровно один раз.
 9. Верни все переданные задачи.
-
 Верни ТОЛЬКО JSON.
-
 Не используй Markdown.
 Не добавляй текст перед JSON.
 Не добавляй текст после JSON.
-
 Формат:
-
 {{
     "tasks": [
         {{
@@ -332,11 +282,10 @@ def replan_tasks_with_ai(
     ]
 }}
 """
-    # ЗАПРОС К OLLAMA
+    # запрос OLLAMA
     try:
         response = ollama_client.chat(
             model=MODEL_NAME,
-
             messages=[
                 {
                     "role": "system",
@@ -355,9 +304,7 @@ def replan_tasks_with_ai(
                     "content": prompt,
                 },
             ],
-
             format="json",
-
             options={
                 "temperature": 0.2,
             },
@@ -367,35 +314,29 @@ def replan_tasks_with_ai(
         raise RuntimeError(
             f"Не удалось подключиться к Ollama: {error}"
         ) from error
-    # ЧИТАЕМ ОТВЕТ
+    # ответ
     try:
         content = response[
             "message"
         ][
             "content"
         ]
-
     except Exception as error:
         raise RuntimeError(
             "Ollama вернул неожиданный ответ"
         ) from error
-
-    # JSON
-
+    # json
     try:
         data = json.loads(
             content
         )
-
     except json.JSONDecodeError as error:
         raise RuntimeError(
             "AI вернул некорректный JSON"
         ) from error
-
     ai_tasks = data.get(
         "tasks"
     )
-
     if not isinstance(
         ai_tasks,
         list,
@@ -405,29 +346,23 @@ def replan_tasks_with_ai(
             "формат плана"
         )
 
-    # ОРИГИНАЛЬНЫЕ ЗАДАЧИ
-
+    # ориг задачи
     original_tasks = {
         task.id: task
         for task in tasks
     }
-
     original_ids = set(
         original_tasks.keys()
     )
-
     received_ids = []
-
     allowed_priorities = {
         "low",
         "medium",
         "high",
     }
 
-    # ПРОВЕРЯЕМ AI-ОТВЕТ
-
+    # проверяем al ответ
     for item in ai_tasks:
-
         if not isinstance(
             item,
             dict,
@@ -436,54 +371,42 @@ def replan_tasks_with_ai(
                 "AI вернул неправильный "
                 "формат задачи"
             )
-
         task_id = item.get(
             "task_id"
         )
-
         priority = item.get(
             "priority"
         )
-
         if task_id not in original_ids:
             raise RuntimeError(
                 "AI вернул неизвестную задачу"
             )
-
         if priority not in allowed_priorities:
             raise RuntimeError(
                 "AI вернул неверный приоритет"
             )
-
         if task_id in received_ids:
             raise RuntimeError(
                 "AI продублировал задачу"
             )
-
         received_ids.append(
             task_id
         )
 
-#ПРОВЕРЯЕМ, ЧТО AI ВЕРНУЛ ВСЕ ЗАДАЧИ
+# проверка, на то вернул ли al все залачи
 
     if set(received_ids) != original_ids:
         raise RuntimeError(
             "AI вернул не все задачи"
         )
-
-#СОЗДАЁМ НОВЫЕ ДЕДЛАЙНЫ
-
-
+# новый дедлайн
     now = datetime.now(
         timezone.utc
     )
-
     number_of_tasks = len(
         ai_tasks
     )
-
     result_tasks = []
-
     for index, item in enumerate(
         ai_tasks,
         start=1,
@@ -491,11 +414,9 @@ def replan_tasks_with_ai(
         task_id = item[
             "task_id"
         ]
-
         original_task = original_tasks[
             task_id
         ]
-
         task_day = max(
             1,
             round(
@@ -504,14 +425,12 @@ def replan_tasks_with_ai(
                 / number_of_tasks
             ),
         )
-
         deadline = (
             now
             + timedelta(
                 days=task_day
             )
         )
-
         replanned_task = AIReplannedTask(
             task_id=original_task.id,
             title=original_task.title,
@@ -520,12 +439,11 @@ def replan_tasks_with_ai(
             status=original_task.status,
             deadline=deadline,
         )
-
         result_tasks.append(
             replanned_task
         )
 
-#ГОТОВЫЙ ПЛАН
+#готовый план
 
     return AIReplanResponse(
         days=days,

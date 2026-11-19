@@ -3,33 +3,29 @@ from fastapi import (
     Depends,
     HTTPException,
 )
-
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
 from database import get_db
 from dependencies import get_current_user
 from models import User
-
 from schemas import (
     TokenResponse,
     UserCreate,
     UserLogin,
     UserResponse,
 )
-
 from security import (
     create_access_token,
     hash_password,
     verify_password,
 )
-# ROUTER
+# роутер
 
 router = APIRouter(
     tags=["Auth"]
 )
-# РЕГИСТРАЦИЯ
+# регистрация
 
 @router.post(
     "/register",
@@ -41,7 +37,7 @@ def register_user(
     db: Session = Depends(get_db),
 ):
 
-    # Проверяем username
+# Проверяем username
     existing_username = db.scalar(
         select(User).where(
             User.username == user_data.username
@@ -54,7 +50,7 @@ def register_user(
             detail="Имя пользователя уже занято",
         )
 
-    # Проверяем email
+    #Проверяем email
     existing_email = db.scalar(
         select(User).where(
             User.email == user_data.email
@@ -95,7 +91,7 @@ def register_user(
     db.refresh(new_user)
 
     return new_user
-# ВХОД
+# вход
 
 @router.post(
     "/login",
@@ -106,7 +102,7 @@ def login_user(
     db: Session = Depends(get_db),
 ):
 
-    # Ищем пользователя по email
+# Ищем пользователя по email
     user = db.scalar(
         select(User).where(
             User.email == user_data.email
@@ -132,7 +128,7 @@ def login_user(
             detail="Неверный email или пароль",
         )
 
-    # Создаём JWT
+    
     access_token = create_access_token(
         user.id
     )
@@ -141,7 +137,7 @@ def login_user(
         "access_token": access_token,
         "token_type": "bearer",
     }
-# ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+# текущий пользователь
 @router.get(
     "/me",
     response_model=UserResponse,

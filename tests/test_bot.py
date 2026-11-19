@@ -9,15 +9,12 @@ from bot.keyboards import (
     replan_instruction_menu,
     replan_preview_menu,
 )
-
-
 def get_reply_button_texts(markup):
     return [
         button.text
         for row in markup.keyboard
         for button in row
     ]
-
 
 def get_inline_buttons(markup):
     return [
@@ -29,9 +26,7 @@ def get_inline_buttons(markup):
 
 def test_main_menu():
     markup = main_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert "📋 Мои задачи" in texts
     assert "➕ Добавить задачу" in texts
     assert "🤖 AI-план" in texts
@@ -39,46 +34,34 @@ def test_main_menu():
     assert "✅ Выполненные" in texts
     assert "👤 Профиль" in texts
 
-
 def test_auth_menu():
     markup = auth_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert texts == [
         "🔐 Войти в StudyFlow"
     ]
 
-
 def test_priority_menu():
     markup = priority_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert "🟢 Низкий" in texts
     assert "🟡 Средний" in texts
     assert "🔴 Высокий" in texts
     assert "❌ Отмена" in texts
 
-
 def test_ai_plan_menu():
     markup = ai_plan_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert "💾 Сохранить AI-план" in texts
     assert "🔄 Сгенерировать заново" in texts
     assert "❌ Отмена" in texts
-
 
 def test_task_actions_menu_for_active_task():
     markup = task_actions_menu(
         task_id=15,
         is_done=False,
     )
-
     buttons = get_inline_buttons(markup)
-
     callback_data = [
         button.callback_data
         for button in buttons
@@ -88,7 +71,6 @@ def test_task_actions_menu_for_active_task():
     assert "task_edit:15" in callback_data
     assert "task_delete:15" in callback_data
 
-
 def test_task_actions_menu_for_completed_task():
     markup = task_actions_menu(
         task_id=20,
@@ -96,7 +78,6 @@ def test_task_actions_menu_for_completed_task():
     )
 
     buttons = get_inline_buttons(markup)
-
     callback_data = [
         button.callback_data
         for button in buttons
@@ -106,14 +87,12 @@ def test_task_actions_menu_for_completed_task():
     assert "task_edit:20" in callback_data
     assert "task_delete:20" in callback_data
 
-
 def test_edit_task_menu():
     markup = edit_task_menu(
         task_id=7
     )
 
     buttons = get_inline_buttons(markup)
-
     callback_data = [
         button.callback_data
         for button in buttons
@@ -132,7 +111,6 @@ def test_delete_confirm_menu():
     )
 
     buttons = get_inline_buttons(markup)
-
     callback_data = [
         button.callback_data
         for button in buttons
@@ -144,18 +122,14 @@ def test_delete_confirm_menu():
 
 def test_replan_instruction_menu():
     markup = replan_instruction_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert "⏭ Без пожеланий" in texts
     assert "❌ Отмена" in texts
 
 
 def test_replan_preview_menu():
     markup = replan_preview_menu()
-
     texts = get_reply_button_texts(markup)
-
     assert "✅ Применить новый план" in texts
     assert "🔄 Пересчитать план" in texts
     assert "❌ Отмена" in texts

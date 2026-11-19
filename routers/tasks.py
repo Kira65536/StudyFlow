@@ -1,29 +1,23 @@
 from typing import Literal
-
 from fastapi import (
     APIRouter,
     Depends,
     Query,
 )
-
 from sqlalchemy import (
     select,
     or_,
 )
-
 from sqlalchemy.orm import Session
-
 from database import get_db
 from dependencies import (
     get_current_user,
     get_user_task,
 )
-
 from models import (
     Task,
     User,
 )
-
 from schemas import (
     Priority,
     TaskStatus,
@@ -33,28 +27,20 @@ from schemas import (
     TaskResponse,
     TaskDeleteResponse,
 )
-
-
-#ROUTER
-
+#роутер
 router = APIRouter(
     prefix="/tasks",
     tags=["Tasks"],
 )
 
-
-#ПОЛУЧИТЬ ВСЕ ЗАДАЧИ
-
+# получаем все все задачи
 @router.get(
     "",
     response_model=list[TaskResponse],
 )
 def get_tasks(
-
     status: TaskStatus | None = None,
-
     priority: Priority | None = None,
-
     search: str | None = Query(
         default=None,
         max_length=200,
@@ -77,19 +63,15 @@ def get_tasks(
         ge=1,
         le=100,
     ),
-
     offset: int = Query(
         default=0,
         ge=0,
     ),
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
 ):
-
     statement = select(Task).where(
         Task.user_id == current_user.id
     )
@@ -106,11 +88,9 @@ def get_tasks(
             Task.priority == priority
         )
 
-    # Поиск по title и description
+# Поиск по title и description
     if search:
-
         search = search.strip()
-
         if search:
             statement = statement.where(
                 or_(
@@ -130,7 +110,6 @@ def get_tasks(
         "deadline": Task.deadline,
         "title": Task.title,
     }
-
     sort_column = sort_columns[
         sort_by
     ]
@@ -166,17 +145,14 @@ def get_tasks(
     return tasks
 
 
-#ПОЛУЧИТЬ ОДНУ ЗАДАЧУ.
-
+# получаем одну задачу
 @router.get(
     "/{task_id}",
     response_model=TaskResponse,
 )
 def get_task(
     task_id: int,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
@@ -188,8 +164,7 @@ def get_task(
         db=db,
     )
 
-# СОЗДАТЬ ЗАДАЧУ
-
+# создаем задачу
 @router.post(
     "",
     response_model=TaskResponse,
@@ -197,46 +172,36 @@ def get_task(
 )
 def create_task(
     task_data: TaskCreate,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
 ):
-
     new_task = Task(
         title=task_data.title,
         description=task_data.description,
         priority=task_data.priority,
         status=task_data.status,
         deadline=task_data.deadline,
-
         completed=(
             task_data.status == "done"
         ),
-
         user_id=current_user.id,
     )
-
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
 
     return new_task
-# ПОЛНОЕ ОБНОВЛЕНИЕ ЗАДАЧИ
-
+# полное обновление задачи
 @router.put(
     "/{task_id}",
     response_model=TaskResponse,
 )
 def update_task(
     task_id: int,
-
     task_data: TaskUpdate,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
@@ -247,13 +212,11 @@ def update_task(
         user_id=current_user.id,
         db=db,
     )
-
     task.title = task_data.title
     task.description = task_data.description
     task.priority = task_data.priority
     task.status = task_data.status
     task.deadline = task_data.deadline
-
     task.completed = (
         task_data.status == "done"
     )
@@ -264,7 +227,7 @@ def update_task(
     return task
 
 
-#ЧАСТИЧНОЕ ОБНОВЛЕНИЕ ЗАДАЧИ
+# частичное обновление задачи
 
 @router.patch(
     "/{task_id}",
@@ -272,16 +235,12 @@ def update_task(
 )
 def patch_task(
     task_id: int,
-
     task_data: TaskPatch,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
 ):
-
     task = get_user_task(
         task_id=task_id,
         user_id=current_user.id,
@@ -302,17 +261,15 @@ def patch_task(
 
     # completed автоматически зависит от status
     if "status" in update_data:
-
         task.completed = (
             task.status == "done"
         )
 
     db.commit()
     db.refresh(task)
-
     return task
 
-#УДАЛЕНИЕ ЗАДАЧИ
+# удаляем задачу
 
 @router.delete(
     "/{task_id}",
@@ -320,14 +277,11 @@ def patch_task(
 )
 def delete_task(
     task_id: int,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(
         get_current_user
     ),
 ):
-
     task = get_user_task(
         task_id=task_id,
         user_id=current_user.id,
@@ -336,7 +290,6 @@ def delete_task(
 
     db.delete(task)
     db.commit()
-
     return {
         "message": "Задача удалена",
         "task_id": task_id,

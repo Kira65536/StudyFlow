@@ -27,20 +27,19 @@ services:
     build: .
     container_name: studyflow_api
     restart: unless-stopped
-
+    ports:
+      - "8000:8000"
     env_file:
       - .env
 
     environment:
       DATABASE_URL: postgresql+psycopg2://studyflow:studyflow@db:5432/studyflow
 
-    ports:
-      - "8000:8000"
-
     depends_on:
       db:
         condition: service_healthy
-
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >
       sh -c "
       alembic upgrade head &&

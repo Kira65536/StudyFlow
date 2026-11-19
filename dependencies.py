@@ -1,24 +1,19 @@
 import jwt
-
 from fastapi import Depends, HTTPException
 from fastapi.security import (
     HTTPBearer,
     HTTPAuthorizationCredentials,
 )
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
 from database import get_db
 from models import Task, User
 from security import decode_access_token
-
 
 # Схема авторизации Bearer Token
 bearer_scheme = HTTPBearer(
     auto_error=False
 )
-
 
 def authorization_error(
     detail: str,
@@ -26,7 +21,6 @@ def authorization_error(
     """
     Стандартная ошибка авторизации.
     """
-
     return HTTPException(
         status_code=401,
         detail=detail,
@@ -34,8 +28,6 @@ def authorization_error(
             "WWW-Authenticate": "Bearer"
         },
     )
-
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(
         bearer_scheme
@@ -46,22 +38,17 @@ def get_current_user(
     Получает текущего пользователя
     из JWT-токена.
     """
-
     if credentials is None:
         raise authorization_error(
             "Необходима авторизация"
         )
-
     token = credentials.credentials
-
     try:
         user_id = decode_access_token(token)
-
     except jwt.ExpiredSignatureError:
         raise authorization_error(
             "Токен просрочен"
         )
-
     except (
         jwt.InvalidTokenError,
         ValueError,
@@ -69,19 +56,16 @@ def get_current_user(
         raise authorization_error(
             "Недействительный токен"
         )
-
     user = db.get(
         User,
         user_id,
     )
-
     if user is None:
         raise authorization_error(
             "Пользователь не найден"
         )
 
     return user
-
 
 def get_user_task(
     task_id: int,
@@ -92,7 +76,6 @@ def get_user_task(
     Получает задачу только если она
     принадлежит текущему пользователю.
     """
-
     task = db.scalar(
         select(Task).where(
             Task.id == task_id,
@@ -105,5 +88,4 @@ def get_user_task(
             status_code=404,
             detail="Задача не найдена",
         )
-
     return task

@@ -9,10 +9,8 @@ from schemas import (
     AIReplannedTask,
     AIReplanResponse,
 )
-# HELPERS
 
 def register_and_login(client):
-
     client.post(
         "/register",
         json={
@@ -21,7 +19,6 @@ def register_and_login(client):
             "password": "12345678",
         },
     )
-
     response = client.post(
         "/login",
         json={
@@ -29,15 +26,12 @@ def register_and_login(client):
             "password": "12345678",
         },
     )
-
     token = response.json()[
         "access_token"
     ]
-
     return {
         "Authorization": f"Bearer {token}"
     }
-
 
 def create_task(client, headers):
 
@@ -54,8 +48,6 @@ def create_task(client, headers):
     )
 
     return response.json()
-
-# AI — GENERATE TASKS
 
 def test_generate_ai_tasks(
     client,
@@ -108,7 +100,6 @@ def test_generate_ai_tasks(
         "routers.ai.generate_tasks_with_ai",
         fake_generate_tasks,
     )
-
     response = client.post(
         "/ai/generate-tasks",
         headers=headers,
@@ -123,27 +114,20 @@ def test_generate_ai_tasks(
     )
 
     assert response.status_code == 200
-
     data = response.json()
-
     assert len(data["tasks"]) == 2
-
     assert (
         data["tasks"][0]["title"]
         == "Повторить Python"
     )
-
     assert (
         data["tasks"][0]["priority"]
         == "high"
     )
-# AI — SAVE TASKS
 def test_save_ai_tasks(client):
-
     headers = register_and_login(
         client
     )
-
     response = client.post(
         "/ai/save-tasks",
         headers=headers,
@@ -170,23 +154,16 @@ def test_save_ai_tasks(client):
     )
 
     assert response.status_code == 201
-
     data = response.json()
-
     assert data["saved_count"] == 2
     assert len(data["tasks"]) == 2
-
     # Дополнительно проверяем, что задачи реально появились в БД
     tasks_response = client.get(
         "/tasks",
         headers=headers,
     )
-
     tasks = tasks_response.json()
-
     assert len(tasks) == 2
-
-# AI — REPLAN
 
 def test_ai_replan(
     client,
@@ -235,7 +212,6 @@ def test_ai_replan(
         "routers.ai.replan_tasks_with_ai",
         fake_replan,
     )
-
     response = client.post(
         "/ai/replan",
         headers=headers,
@@ -246,28 +222,18 @@ def test_ai_replan(
             ),
         },
     )
-
     assert response.status_code == 200
-
     data = response.json()
-
     assert data["days"] == 5
     assert len(data["tasks"]) == 1
-
     assert (
         data["tasks"][0]["task_id"]
         == task_id
     )
-
     assert (
         data["tasks"][0]["priority"]
         == "high"
     )
-
-
-
-# AI — APPLY REPLAN
-
 def test_apply_replan(client):
 
     headers = register_and_login(
@@ -278,9 +244,7 @@ def test_apply_replan(client):
         client,
         headers,
     )
-
     task_id = task["id"]
-
     response = client.post(
         "/ai/apply-replan",
         headers=headers,
@@ -298,17 +262,12 @@ def test_apply_replan(client):
     )
 
     assert response.status_code == 200
-
     data = response.json()
-
     assert data["updated_count"] == 1
-
     assert (
         data["tasks"][0]["priority"]
         == "high"
     )
-
-    # Проверяем, что изменения действительно сохранились
     task_response = client.get(
         f"/tasks/{task_id}",
         headers=headers,
@@ -327,10 +286,7 @@ def test_apply_replan(client):
         updated_task["deadline"]
         is not None
     )
-# AI БЕЗ АВТОРИЗАЦИИ
-
 def test_ai_without_token(client):
-
     response = client.post(
         "/ai/generate-tasks",
         json={
@@ -339,5 +295,4 @@ def test_ai_without_token(client):
             "days": 7,
         },
     )
-
     assert response.status_code == 401

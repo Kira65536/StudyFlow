@@ -1,11 +1,8 @@
 from datetime import datetime
-
 from sqlalchemy import String, Boolean, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from database import Base
 # TASK
-
 class Task(Base):
     __tablename__ = "tasks"
 
