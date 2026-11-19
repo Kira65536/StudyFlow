@@ -1,14 +1,11 @@
 from datetime import datetime
 from html import escape
-
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
-
 from database import SessionLocal
 from models import Task, User
-
 from bot.keyboards import (
     auth_menu,
     cancel_menu,
@@ -26,14 +23,11 @@ from bot.states import (
     EditTaskState,
 )
 
-
 router = Router()
-#МОИ ЗАДАЧИ
-
+# мои задачи
 @router.message(F.text == "📋 Мои задачи")
 async def my_tasks_handler(message: Message):
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
@@ -47,7 +41,6 @@ async def my_tasks_handler(message: Message):
                 reply_markup=auth_menu(),
             )
             return
-
         tasks = db.scalars(
             select(Task)
             .where(
@@ -79,7 +72,6 @@ async def my_tasks_handler(message: Message):
         }
 
         task_data = []
-
         for task in tasks:
             priority_icon = priority_icons.get(
                 task.priority,
@@ -90,14 +82,12 @@ async def my_tasks_handler(message: Message):
                 task.status,
                 task.status,
             )
-
             if task.deadline:
                 deadline = task.deadline.strftime(
                     "%d.%m.%Y %H:%M"
                 )
             else:
                 deadline = "Без дедлайна"
-
             task_data.append(
                 {
                     "id": task.id,
@@ -115,7 +105,6 @@ async def my_tasks_handler(message: Message):
         "📋 <b>Мои задачи</b>",
         parse_mode="HTML",
     )
-
     for task in task_data:
         await message.answer(
             task["text"],
@@ -126,8 +115,7 @@ async def my_tasks_handler(message: Message):
             ),
         )
 
-# ВЫПОЛНИТЬ ЗАДАЧУ
-
+# выполнить задачу
 @router.callback_query(
     F.data.startswith("task_complete:")
 )
@@ -137,23 +125,19 @@ async def complete_task(
     task_id = int(
         callback.data.split(":")[1]
     )
-
     telegram_id = callback.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
         if user is None:
             await callback.answer(
                 "Сначала войдите в StudyFlow.",
                 show_alert=True,
             )
             return
-
         task = db.scalar(
             select(Task).where(
                 Task.id == task_id,
@@ -174,14 +158,10 @@ async def complete_task(
                 show_alert=True,
             )
             return
-
         task.status = "done"
         task.completed = True
-
         task_title = task.title
-
         db.commit()
-
     await callback.answer(
         "✅ Задача выполнена!"
     )
@@ -195,7 +175,7 @@ async def complete_task(
             is_done=True,
         ),
     )
-# УДАЛЕНИЕ
+# удаление
 
 @router.callback_query(
     F.data.startswith("task_delete:")
@@ -206,9 +186,7 @@ async def delete_task_request(
     task_id = int(
         callback.data.split(":")[1]
     )
-
     telegram_id = callback.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
@@ -222,7 +200,6 @@ async def delete_task_request(
                 show_alert=True,
             )
             return
-
         task = db.scalar(
             select(Task).where(
                 Task.id == task_id,
@@ -236,11 +213,8 @@ async def delete_task_request(
                 show_alert=True,
             )
             return
-
         task_title = task.title
-
     await callback.answer()
-
     await callback.message.answer(
         "⚠️ <b>Удалить задачу?</b>\n\n"
         f"📌 {escape(task_title)}\n\n"
@@ -251,7 +225,6 @@ async def delete_task_request(
             task_id
         ),
     )
-
 
 @router.callback_query(
     F.data.startswith("task_delete_confirm:")
@@ -292,23 +265,17 @@ async def delete_task_confirm(
                 show_alert=True,
             )
             return
-
         task_title = task.title
-
         db.delete(task)
         db.commit()
-
     await callback.answer(
         "Задача удалена"
     )
-
     await callback.message.edit_text(
         "🗑 <b>Задача удалена</b>\n\n"
         f"📌 {escape(task_title)}",
         parse_mode="HTML",
     )
-
-
 @router.callback_query(
     F.data.startswith("task_delete_cancel:")
 )
@@ -320,8 +287,7 @@ async def delete_task_cancel(
     await callback.message.edit_text(
         "❎ Удаление отменено."
     )
-# РЕДАКТИРОВАНИЕ
-
+# редактирование
 @router.callback_query(
     F.data.startswith("task_edit:")
 )
@@ -331,9 +297,7 @@ async def edit_task_start(
     task_id = int(
         callback.data.split(":")[1]
     )
-
     telegram_id = callback.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
@@ -363,7 +327,6 @@ async def edit_task_start(
             return
 
     await callback.answer()
-
     await callback.message.answer(
         "✏️ <b>Что изменить?</b>",
         parse_mode="HTML",
@@ -371,7 +334,7 @@ async def edit_task_start(
             task_id
         ),
     )
-# ИЗМЕНИТЬ НАЗВАНИЕ
+# изменить название
 
 @router.callback_query(
     F.data.startswith("task_edit_title:")
@@ -385,22 +348,18 @@ async def edit_task_title_start(
     )
 
     await state.clear()
-
     await state.update_data(
         edit_task_id=task_id
     )
-
     await state.set_state(
         EditTaskState.title
     )
 
     await callback.answer()
-
     await callback.message.answer(
         "📝 Введите новое название задачи:",
         reply_markup=cancel_menu(),
     )
-
 
 @router.message(EditTaskState.title)
 async def edit_task_title_save(
@@ -412,29 +371,22 @@ async def edit_task_title_save(
             "❌ Введите название текстом."
         )
         return
-
     title = message.text.strip()
-
     if not title:
         await message.answer(
             "❌ Название не может быть пустым."
         )
         return
-
     data = await state.get_data()
-
     task_id = data["edit_task_id"]
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
         task = None
-
         if user:
             task = db.scalar(
                 select(Task).where(
@@ -445,24 +397,19 @@ async def edit_task_title_save(
 
         if task is None:
             await state.clear()
-
             await message.answer(
                 "❌ Задача не найдена.",
                 reply_markup=main_menu(),
             )
             return
-
         task.title = title
-
         db.commit()
-
     await state.clear()
-
     await message.answer(
         "✅ Название задачи изменено!",
         reply_markup=main_menu(),
     )
-# ИЗМЕНИТЬ ОПИСАНИЕ
+# изменить описание
 
 @router.callback_query(
     F.data.startswith("task_edit_description:")
@@ -476,7 +423,6 @@ async def edit_task_description_start(
     )
 
     await state.clear()
-
     await state.update_data(
         edit_task_id=task_id
     )
@@ -486,13 +432,11 @@ async def edit_task_description_start(
     )
 
     await callback.answer()
-
     await callback.message.answer(
         "📄 Введите новое описание.\n\n"
         "Или нажмите «⏭ Без описания».",
         reply_markup=description_menu(),
     )
-
 
 @router.message(EditTaskState.description)
 async def edit_task_description_save(
@@ -510,21 +454,16 @@ async def edit_task_description_save(
         description = ""
     else:
         description = message.text.strip()
-
     data = await state.get_data()
-
     task_id = data["edit_task_id"]
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
         task = None
-
         if user:
             task = db.scalar(
                 select(Task).where(
@@ -535,24 +474,20 @@ async def edit_task_description_save(
 
         if task is None:
             await state.clear()
-
             await message.answer(
                 "❌ Задача не найдена.",
                 reply_markup=main_menu(),
             )
             return
-
         task.description = description
-
         db.commit()
-
     await state.clear()
 
     await message.answer(
         "✅ Описание задачи изменено!",
         reply_markup=main_menu(),
     )
-# ИЗМЕНИТЬ ПРИОРИТЕТ
+# Изменить приоритет
 
 @router.callback_query(
     F.data.startswith("task_edit_priority:")
@@ -564,24 +499,18 @@ async def edit_task_priority_start(
     task_id = int(
         callback.data.split(":")[1]
     )
-
     await state.clear()
-
     await state.update_data(
         edit_task_id=task_id
     )
-
     await state.set_state(
         EditTaskState.priority
     )
-
     await callback.answer()
-
     await callback.message.answer(
         "🎯 Выберите новый приоритет:",
         reply_markup=priority_menu(),
     )
-
 
 @router.message(EditTaskState.priority)
 async def edit_task_priority_save(
@@ -597,28 +526,22 @@ async def edit_task_priority_save(
     priority = priorities.get(
         message.text
     )
-
     if priority is None:
         await message.answer(
             "❌ Выберите приоритет кнопкой.",
             reply_markup=priority_menu(),
         )
         return
-
     data = await state.get_data()
-
     task_id = data["edit_task_id"]
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
         task = None
-
         if user:
             task = db.scalar(
                 select(Task).where(
@@ -626,10 +549,8 @@ async def edit_task_priority_save(
                     Task.user_id == user.id,
                 )
             )
-
         if task is None:
             await state.clear()
-
             await message.answer(
                 "❌ Задача не найдена.",
                 reply_markup=main_menu(),
@@ -637,16 +558,13 @@ async def edit_task_priority_save(
             return
 
         task.priority = priority
-
         db.commit()
-
     await state.clear()
-
     await message.answer(
         "✅ Приоритет задачи изменён!",
         reply_markup=main_menu(),
     )
-# ИЗМЕНИТЬ ДЕДЛАЙН
+# изменить дедлайн
 @router.callback_query(
     F.data.startswith("task_edit_deadline:")
 )
@@ -659,17 +577,14 @@ async def edit_task_deadline_start(
     )
 
     await state.clear()
-
     await state.update_data(
         edit_task_id=task_id
     )
-
     await state.set_state(
         EditTaskState.deadline
     )
 
     await callback.answer()
-
     await callback.message.answer(
         "📅 Введите новый дедлайн:\n\n"
         "<b>30.09.2026 18:00</b>\n\n"
@@ -677,8 +592,6 @@ async def edit_task_deadline_start(
         parse_mode="HTML",
         reply_markup=deadline_menu(),
     )
-
-
 @router.message(EditTaskState.deadline)
 async def edit_task_deadline_save(
     message: Message,
@@ -690,10 +603,8 @@ async def edit_task_deadline_save(
             "или нажмите «⏭ Без дедлайна»."
         )
         return
-
     if message.text == "⏭ Без дедлайна":
         deadline = None
-
     else:
         try:
             deadline = datetime.strptime(
@@ -712,19 +623,15 @@ async def edit_task_deadline_save(
             return
 
     data = await state.get_data()
-
     task_id = data["edit_task_id"]
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
         task = None
-
         if user:
             task = db.scalar(
                 select(Task).where(
@@ -735,25 +642,18 @@ async def edit_task_deadline_save(
 
         if task is None:
             await state.clear()
-
             await message.answer(
                 "❌ Задача не найдена.",
                 reply_markup=main_menu(),
             )
             return
-
         task.deadline = deadline
-
         db.commit()
-
     await state.clear()
-
     await message.answer(
         "✅ Дедлайн задачи изменён!",
         reply_markup=main_menu(),
     )
-
-
 @router.callback_query(
     F.data.startswith("task_edit_cancel:")
 )
@@ -766,7 +666,7 @@ async def edit_task_cancel(
         "❎ Редактирование закрыто."
     )
 
-# ДОБАВИТЬ ЗАДАЧУ
+# добавить задачу
 
 @router.message(F.text == "➕ Добавить задачу")
 async def add_task_handler(
@@ -774,14 +674,12 @@ async def add_task_handler(
     state: FSMContext,
 ):
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
                 User.telegram_id == telegram_id
             )
         )
-
     if user is None:
         await message.answer(
             "🔐 Сначала войдите "
@@ -789,9 +687,7 @@ async def add_task_handler(
             reply_markup=auth_menu(),
         )
         return
-
     await state.clear()
-
     await state.set_state(
         AddTaskState.title
     )
@@ -802,7 +698,6 @@ async def add_task_handler(
         parse_mode="HTML",
         reply_markup=cancel_menu(),
     )
-
 
 @router.message(AddTaskState.title)
 async def add_task_title(
@@ -816,7 +711,6 @@ async def add_task_title(
         return
 
     title = message.text.strip()
-
     if not title:
         await message.answer(
             "❌ Название не может быть пустым."
@@ -826,7 +720,6 @@ async def add_task_title(
     await state.update_data(
         title=title
     )
-
     await state.set_state(
         AddTaskState.description
     )
@@ -836,8 +729,6 @@ async def add_task_title(
         "Или нажмите «⏭ Без описания».",
         reply_markup=description_menu(),
     )
-
-
 @router.message(AddTaskState.description)
 async def add_task_description(
     message: Message,
@@ -854,7 +745,6 @@ async def add_task_description(
         description = ""
     else:
         description = message.text.strip()
-
     await state.update_data(
         description=description
     )
@@ -867,8 +757,6 @@ async def add_task_description(
         "🎯 Выберите приоритет:",
         reply_markup=priority_menu(),
     )
-
-
 @router.message(AddTaskState.priority)
 async def add_task_priority(
     message: Message,
@@ -943,9 +831,7 @@ async def add_task_deadline(
             return
 
     data = await state.get_data()
-
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
@@ -955,13 +841,11 @@ async def add_task_deadline(
 
         if user is None:
             await state.clear()
-
             await message.answer(
                 "❌ Пользователь не найден.",
                 reply_markup=auth_menu(),
             )
             return
-
         task = Task(
             user_id=user.id,
             title=data["title"],
@@ -974,9 +858,7 @@ async def add_task_deadline(
 
         db.add(task)
         db.commit()
-
     await state.clear()
-
     if deadline:
         deadline_text = deadline.strftime(
             "%d.%m.%Y %H:%M"
@@ -991,7 +873,7 @@ async def add_task_deadline(
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
-# ВЫПОЛНЕННЫЕ
+# выполненные
 
 @router.message(F.text == "✅ Выполненные")
 async def completed_handler(message: Message):

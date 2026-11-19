@@ -70,7 +70,6 @@ def cancel_menu():
         resize_keyboard=True,
     )
 
-
 def description_menu():
     keyboard = [
         [

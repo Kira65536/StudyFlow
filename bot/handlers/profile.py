@@ -1,24 +1,17 @@
 from html import escape
-
 from aiogram import F, Router
 from aiogram.types import Message
 from sqlalchemy import select
-
 from database import SessionLocal
 from models import User
-
 from bot.keyboards import (
     auth_menu,
 )
-
-
 router = Router()
 # ПРОФИЛЬ
-
 @router.message(F.text == "👤 Профиль")
 async def profile_handler(message: Message):
     telegram_id = message.from_user.id
-
     with SessionLocal() as db:
         user = db.scalar(
             select(User).where(
